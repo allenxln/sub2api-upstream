@@ -179,3 +179,12 @@ func TestChannelModelPricingTimePricingCreateAndUpdateWriteNullWhenDisabled(t *t
 		})
 	}
 }
+
+func TestChannelTimePricingExcludedDatesJSONRoundTrip(t *testing.T) {
+	value := &service.ChannelTimePricing{Timezone: "Asia/Shanghai", WeekdaysOnly: true, ExcludedDates: []string{"2026-10-01"}, Periods: []service.ChannelTimePricingPeriod{{StartTime: "09:00:00", EndTime: "12:00:00", Multiplier: 2}}}
+	encoded, err := marshalChannelTimePricing(value)
+	require.NoError(t, err)
+	decoded, err := unmarshalChannelTimePricing([]byte(encoded.(string)))
+	require.NoError(t, err)
+	require.Equal(t, value, decoded)
+}

@@ -486,6 +486,9 @@ function timePricingRowHint(m: PlazaModel): string {
     ? 'modelPlaza.table.timePricingRowHintWeekdays'
     : 'modelPlaza.table.timePricingRowHint'
   let hint = t(key, { timezone: m.time_pricing?.timezone })
+  if (m.time_pricing?.excluded_dates?.length) {
+    hint += ' · ' + t('modelPlaza.table.timePricingExcludedDates', { dates: m.time_pricing.excluded_dates.join(', ') })
+  }
   if (props.peakWindow) {
     hint += t('modelPlaza.table.timePricingRowHintPeak', {
       window: props.peakWindow,

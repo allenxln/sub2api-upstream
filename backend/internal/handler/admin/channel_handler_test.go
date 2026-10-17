@@ -630,3 +630,28 @@ func TestGetModelDefaultPricing_OmitsUnsupportedCache1hPrice(t *testing.T) {
 	require.True(t, body.Data.Found)
 	require.Nil(t, body.Data.CacheWrite1hPrice)
 }
+
+func TestChannelTimePricingExcludedDatesRoundTrip(t *testing.T) {
+	request := &channelTimePricingRequest{Timezone: "Asia/Shanghai", WeekdaysOnly: true, ExcludedDates: []string{"2026-10-01"}, Periods: []channelTimePricingPeriodRequest{{StartTime: "09:00:00", EndTime: "12:00:00", Multiplier: 2}}}
+	value := timePricingRequestToService(request)
+	response := timePricingToResponse(value)
+	require.Equal(t, request.ExcludedDates, response.ExcludedDates)
+	request.ExcludedDates[0] = "2026-10-02"
+	require.Equal(t, "2026-10-01", value.ExcludedDates[0])
+	response.ExcludedDates[0] = "2026-10-03"
+	require.Equal(t, "2026-10-01", value.ExcludedDates[0])
+}
+
+func TestChannelPricingCapabilities(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	(&ChannelHandler{}).GetPricingCapabilities(c)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var body struct {
+		Code int             `json:"code"`
+		Data map[string]bool `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, 0, body.Code)
+	require.True(t, body.Data["time_pricing_excluded_dates"])
+}

@@ -47,6 +47,7 @@ export interface TimePricingPeriodFormEntry {
 export interface TimePricingFormEntry {
   timezone: string
   weekdays_only: boolean
+  excluded_dates?: string[]
   periods: TimePricingPeriodFormEntry[]
 }
 
@@ -79,6 +80,7 @@ export function apiTimePricingToForm(value: ChannelTimePricing | null | undefine
   return {
     timezone: value.timezone || DEFAULT_TIME_PRICING_TIMEZONE,
     weekdays_only: value.weekdays_only === true,
+    ...(value.excluded_dates?.length ? { excluded_dates: [...value.excluded_dates] } : {}),
     periods: (value.periods || []).map(period => ({
       start_time: LEGACY_CLOCK_TIME.test(period.start_time) ? `${period.start_time}:00` : period.start_time,
       end_time: LEGACY_CLOCK_TIME.test(period.end_time) ? `${period.end_time}:00` : period.end_time,
@@ -93,6 +95,7 @@ export function formTimePricingToAPI(value: TimePricingFormEntry | null | undefi
   return {
     timezone,
     weekdays_only: value.weekdays_only === true,
+    ...(value.excluded_dates?.length ? { excluded_dates: [...value.excluded_dates] } : {}),
     periods: value.periods.map(period => ({
       start_time: period.start_time,
       end_time: period.end_time,

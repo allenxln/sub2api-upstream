@@ -46,6 +46,9 @@
       </button>
     </div>
 
+    <p v-if="modelValue.excluded_dates?.length" class="mt-2 text-xs text-gray-500" data-testid="time-pricing-excluded-dates">
+      {{ t('admin.channels.form.timePricingExcludedDates') }}: {{ modelValue.excluded_dates.join(', ') }}
+    </p>
     <div v-if="modelValue.periods.length > 0" class="mt-3 space-y-3">
       <div
         v-for="(period, index) in modelValue.periods"

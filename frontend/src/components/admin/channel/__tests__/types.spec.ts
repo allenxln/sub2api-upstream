@@ -244,3 +244,15 @@ describe('time pricing', () => {
     expect(formTimePricingToAPI(form)?.timezone).toBe('')
   })
 })
+
+describe('time pricing excluded dates', () => {
+  it('preserves date exceptions across API and form conversion without aliasing', () => {
+    const source = { timezone: 'Asia/Shanghai', weekdays_only: true, excluded_dates: ['2026-10-01'], periods: [{start_time: '09:00:00', end_time: '12:00:00', multiplier: 2}] }
+    const form = apiTimePricingToForm(source)
+    const saved = formTimePricingToAPI(form)
+    expect(saved).toEqual(source)
+    form.excluded_dates![0] = '2026-10-02'
+    expect(source.excluded_dates).toEqual(['2026-10-01'])
+    expect(saved!.excluded_dates).toEqual(['2026-10-01'])
+  })
+})

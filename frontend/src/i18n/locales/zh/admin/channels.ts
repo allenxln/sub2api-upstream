@@ -159,6 +159,7 @@ export default {
         timePricing: '时间段定价（可选）',
         timezone: '时区',
         timePricingDayScope: '生效日',
+        timePricingExcludedDates: '不加收高峰费用的日期',
         timePricingEveryDay: '每日生效（周一至周日，含周末）',
         timePricingWeekdaysOnly: '仅工作日生效（周一至周五）',
         addTimePeriod: '添加时间段',

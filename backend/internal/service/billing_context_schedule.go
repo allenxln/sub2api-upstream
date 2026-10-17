@@ -41,9 +41,10 @@ type TimePricingPeriod struct {
 // TimePricingSchedule 分组+模型生效的分时倍率（仅列出倍率 ≠ 1 的时段，按开始时间升序）。
 // WeekdaysOnly 为 true 时时段仅周一至周五生效，周末整天按标准价计费。
 type TimePricingSchedule struct {
-	Timezone     string
-	WeekdaysOnly bool
-	Periods      []TimePricingPeriod
+	Timezone      string
+	WeekdaysOnly  bool
+	ExcludedDates []string
+	Periods       []TimePricingPeriod
 }
 
 // ContextPricingSchedule 分组+模型按上下文长度分档的有效单价表。
@@ -161,6 +162,11 @@ func resolvedTimePricingSchedule(resolved *ResolvedPricing) *TimePricingSchedule
 		// 锚点日必须是工作日（2026-01-05 为周一）：weekdays_only 配置在周末恒为 1，
 		// 锚点落在周末会把时段整组剔除。
 		at := time.Date(2026, time.January, 5, 0, 0, start+1, 0, location)
+		// A configured exclusion may cover the original metadata probe date.
+		// Use the same date predicate as billing, then probe billing only once.
+		for day := 0; !cfg.appliesOnDate(at) && day < (len(cfg.ExcludedDates)+1)*7; day++ {
+			at = at.AddDate(0, 0, 1)
+		}
 		multiplier := resolvedChannelTimeMultiplier(resolved, at)
 		if multiplier == 1 {
 			continue
@@ -176,9 +182,10 @@ func resolvedTimePricingSchedule(resolved *ResolvedPricing) *TimePricingSchedule
 	}
 	sort.SliceStable(probed, func(i, j int) bool { return probed[i].start < probed[j].start })
 	out := &TimePricingSchedule{
-		Timezone:     cfg.Timezone,
-		WeekdaysOnly: cfg.WeekdaysOnly,
-		Periods:      make([]TimePricingPeriod, 0, len(probed)),
+		Timezone:      cfg.Timezone,
+		WeekdaysOnly:  cfg.WeekdaysOnly,
+		ExcludedDates: append([]string(nil), cfg.ExcludedDates...),
+		Periods:       make([]TimePricingPeriod, 0, len(probed)),
 	}
 	for _, p := range probed {
 		out.Periods = append(out.Periods, p.period)

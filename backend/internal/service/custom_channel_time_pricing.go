@@ -25,6 +25,12 @@ func validateChannelTimePricing(config *ChannelTimePricing) error {
 	if _, err := loadChannelTimePricingLocation(config.Timezone); err != nil {
 		return fmt.Errorf("timezone: %w", err)
 	}
+	for _, date := range config.ExcludedDates {
+		parsed, err := time.Parse("2006-01-02", date)
+		if err != nil || parsed.Format("2006-01-02") != date {
+			return fmt.Errorf("excluded_dates must contain YYYY-MM-DD calendar dates")
+		}
+	}
 	_, err := parseChannelTimePeriods(config.Periods)
 	return err
 }
@@ -47,7 +53,7 @@ func (config *ChannelTimePricing) MultiplierAt(at time.Time) float64 {
 	}
 
 	local := at.In(location)
-	if config.WeekdaysOnly && (local.Weekday() == time.Saturday || local.Weekday() == time.Sunday) {
+	if !config.appliesOnDate(local) {
 		return 1.0
 	}
 	second := local.Hour()*60*60 + local.Minute()*60 + local.Second()
@@ -57,6 +63,19 @@ func (config *ChannelTimePricing) MultiplierAt(at time.Time) float64 {
 		}
 	}
 	return 1.0
+}
+
+func (config *ChannelTimePricing) appliesOnDate(local time.Time) bool {
+	if config.WeekdaysOnly && (local.Weekday() == time.Saturday || local.Weekday() == time.Sunday) {
+		return false
+	}
+	localDate := local.Format("2006-01-02")
+	for _, date := range config.ExcludedDates {
+		if date == localDate {
+			return false
+		}
+	}
+	return true
 }
 
 func loadChannelTimePricingLocation(name string) (*time.Location, error) {

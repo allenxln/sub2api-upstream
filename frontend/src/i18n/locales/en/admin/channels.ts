@@ -159,6 +159,7 @@ export default {
         timePricing: 'Time-based pricing (optional)',
         timezone: 'Time zone',
         timePricingDayScope: 'Effective days',
+        timePricingExcludedDates: 'Dates without peak pricing',
         timePricingEveryDay: 'Every day (Monday-Sunday, including weekends)',
         timePricingWeekdaysOnly: 'Weekdays only (Monday-Friday)',
         addTimePeriod: 'Add period',

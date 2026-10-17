@@ -412,3 +412,18 @@ func newTestChannelServiceWithCache(t *testing.T, cache *channelCache) *ChannelS
 	cs.cache.Store(cache)
 	return cs
 }
+
+func TestCalculateCostUnified_ChannelTimePricingExcludedHoliday(t *testing.T) {
+	billing := NewBillingService(&config.Config{}, nil)
+	resolved := channelTimeResolvedForTest(&ModelPricing{InputPricePerToken: .001}, nil)
+	resolved.channelPricing.TimePricing.ExcludedDates = []string{"2026-10-01"}
+	for _, tc := range []struct {
+		day  int
+		want float64
+	}{{1, 1}, {2, 2}} {
+		cost, err := billing.CalculateCostUnified(CostInput{Ctx: context.Background(), Model: "model", Tokens: UsageTokens{InputTokens: 1000}, RateMultiplier: .8, Resolver: &ModelPricingResolver{}, Resolved: resolved, PricingAt: time.Date(2026, 10, tc.day, 1, 0, 0, 0, time.UTC)})
+		require.NoError(t, err)
+		require.InDelta(t, tc.want, cost.TotalCost, 1e-12)
+		require.InDelta(t, tc.want*.8, cost.ActualCost, 1e-12)
+	}
+}

@@ -57,6 +57,7 @@ export interface PlazaModel {
 }
 
 export interface ModelPlazaGroup {
+  currency?: string
   id: number
   name: string
   description: string

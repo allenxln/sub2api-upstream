@@ -37,6 +37,7 @@ type PlazaModel struct {
 // 支持模型（普通分组按分组平台隔离，Composite 分组展开关联渠道已配置的
 // 具体平台），与「可用渠道」页口径一致。
 type PlazaGroup struct {
+	Currency           string
 	ID                 int64
 	Name               string
 	Description        string
@@ -123,6 +124,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 	for i := range groups {
 		g := &groups[i]
 		byGroup[g.ID] = &PlazaGroup{
+			Currency:                  s.pricingService.Currency(),
 			ID:                        g.ID,
 			Name:                      g.Name,
 			Description:               g.Description,

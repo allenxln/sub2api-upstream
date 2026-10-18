@@ -669,6 +669,8 @@ type TokenRefreshConfig struct {
 }
 
 type PricingConfig struct {
+	// Currency is the unit of catalog, channel and group prices. No runtime FX.
+	Currency string `mapstructure:"currency"`
 	// 价格数据远程URL（默认使用LiteLLM镜像）
 	RemoteURL string `mapstructure:"remote_url"`
 	// 哈希校验文件URL
@@ -2342,6 +2344,7 @@ func setDefaults() {
 	viper.SetDefault("rate_limit.oauth_401_cooldown_minutes", 10)
 
 	// Pricing - 从 model-price-repo main 分支同步模型定价和上下文窗口数据
+	viper.SetDefault("pricing.currency", "USD")
 	viper.SetDefault("pricing.remote_url", "https://raw.githubusercontent.com/Wei-Shaw/model-price-repo/main/model_prices_and_context_window.json")
 	viper.SetDefault("pricing.hash_url", "https://raw.githubusercontent.com/Wei-Shaw/model-price-repo/main/model_prices_and_context_window.sha256")
 	viper.SetDefault("pricing.data_dir", "./data")
@@ -2707,6 +2710,9 @@ func setEnvReachableDefaults() {
 }
 
 func (c *Config) Validate() error {
+	if c.Pricing.Currency != "" && c.Pricing.Currency != "USD" && c.Pricing.Currency != "CNY" {
+		return fmt.Errorf("pricing.currency must be USD or CNY")
+	}
 	forwardedClientIPHeaders, err := NormalizeForwardedClientIPHeaders(c.Security.ForwardedClientIPHeaders)
 	if err != nil {
 		return fmt.Errorf("security.forwarded_client_ip_headers: %w", err)

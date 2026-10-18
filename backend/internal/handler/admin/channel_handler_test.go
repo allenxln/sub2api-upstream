@@ -648,10 +648,14 @@ func TestChannelPricingCapabilities(t *testing.T) {
 	(&ChannelHandler{}).GetPricingCapabilities(c)
 	require.Equal(t, http.StatusOK, recorder.Code)
 	var body struct {
-		Code int             `json:"code"`
-		Data map[string]bool `json:"data"`
+		Code int `json:"code"`
+		Data struct {
+			TimePricingExcludedDates bool   `json:"time_pricing_excluded_dates"`
+			Currency                 string `json:"currency"`
+		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
 	require.Equal(t, 0, body.Code)
-	require.True(t, body.Data["time_pricing_excluded_dates"])
+	require.True(t, body.Data.TimePricingExcludedDates)
+	require.Equal(t, "USD", body.Data.Currency)
 }

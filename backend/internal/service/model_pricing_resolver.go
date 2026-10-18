@@ -124,6 +124,12 @@ func (r *ModelPricingResolver) Resolve(ctx context.Context, input PricingInput) 
 	} else if input.GroupID != nil && r.channelService != nil {
 		r.applyChannelOverrides(ctx, *input.GroupID, input.Model, resolved)
 	}
+	if resolved.channelPricing == nil && r.billingService.pricingService != nil {
+		if entry := r.billingService.pricingService.GetModelPricing(input.Model); entry != nil && entry.Pricing != nil {
+			resolved = r.resolveConfiguredPricing(entry.Pricing, input.Model, PricingSourceLiteLLM)
+			resolved.longContextPricingEnabled = longContextPricingEnabled
+		}
+	}
 
 	return resolved
 }

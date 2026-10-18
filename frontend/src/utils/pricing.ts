@@ -10,7 +10,7 @@
  * Uses toPrecision(10) then strips trailing zeros to avoid IEEE 754 display noise.
  * `minFractionDigits` pads the result back up to a minimum number of decimals.
  */
-export function formatScaled(value: number | null, scale: number, minFractionDigits = 0): string {
+export function formatScaled(value: number | null, scale: number, minFractionDigits = 0, currency: string | null = 'USD'): string {
   if (value == null) return '-'
   let s = Number((value * scale).toPrecision(10)).toString()
   if (minFractionDigits > 0 && !s.includes('e')) {
@@ -20,7 +20,7 @@ export function formatScaled(value: number | null, scale: number, minFractionDig
       s = (dot === -1 ? `${s}.` : s) + '0'.repeat(minFractionDigits - digits)
     }
   }
-  return `$${s}`
+  return `${pricingCurrencySymbol(currency)}${s}`
 }
 
 import type { UserPricingInterval } from '@/api/channels'
@@ -39,4 +39,11 @@ export function resolveIntervalPrices(iv: UserPricingInterval, base: TokenPrices
     cache_write_1h_price: iv.cache_write_1h_price ?? iv.cache_write_price ?? price(null, iv.cache_write_multiplier, base.cache_write_1h_price),
     cache_read_price: price(iv.cache_read_price, iv.cache_read_multiplier, base.cache_read_price)
   }
+}
+
+/** Currency metadata comes from the native catalog; amounts are never converted here. */
+export function pricingCurrencySymbol(currency: string | null | undefined): string {
+  if (currency === 'CNY') return '¥'
+  if (currency === 'USD') return '$'
+  return '—'
 }

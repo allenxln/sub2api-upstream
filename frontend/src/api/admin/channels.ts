@@ -205,5 +205,10 @@ export async function syncPricingModels(platform: string): Promise<SyncPricingMo
   return data
 }
 
-const channelsAPI = { list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels }
+export async function getPricingCapabilities(): Promise<{currency: string; time_pricing_excluded_dates: boolean}> {
+  const {data} = await apiClient.get('/admin/channels/pricing-capabilities')
+  return data
+}
+
+const channelsAPI = { getPricingCapabilities, list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels }
 export default channelsAPI

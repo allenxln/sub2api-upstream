@@ -254,7 +254,7 @@ func reasoningEffortBillingMultiplier(effort string, multipliers map[string]floa
 }
 
 func resolvedChannelTimeMultiplier(resolved *ResolvedPricing, at time.Time) float64 {
-	if resolved == nil || resolved.Source != PricingSourceChannel || resolved.channelPricing == nil {
+	if resolved == nil || (resolved.Source != PricingSourceChannel && resolved.Source != PricingSourceLiteLLM) || resolved.channelPricing == nil {
 		return 1
 	}
 	return resolved.channelPricing.TimePricing.MultiplierAt(at)
@@ -1333,6 +1333,9 @@ func (s *BillingService) HasIdentifiedTokenPricing(model string) bool {
 			return true
 		}
 	}
+	if s.cfg != nil && s.cfg.Pricing.Currency == "CNY" {
+		return false
+	}
 	pricing, ok := s.fallbackPrices[model]
 	return ok && pricing != nil
 }
@@ -1405,6 +1408,9 @@ func (s *BillingService) getModelPricingAt(model string, pricingAt time.Time) (*
 		}
 	}
 
+	if s.cfg != nil && s.cfg.Pricing.Currency == "CNY" {
+		return nil, fmt.Errorf("%w for CNY model: %s", ErrModelPricingUnavailable, model)
+	}
 	// 2. 使用硬编码回退价格
 	fallback := s.getFallbackPricing(model)
 	if fallback != nil {
@@ -1513,7 +1519,7 @@ type CostInput struct {
 // CalculateCostUnified 统一计费入口，支持三种计费模式。
 // 使用 ModelPricingResolver 解析定价，然后根据 BillingMode 分发计算。
 func (s *BillingService) CalculateCostUnified(input CostInput) (*CostBreakdown, error) {
-	if input.Resolver == nil {
+	if input.Resolver == nil && input.Resolved == nil {
 		// 无 Resolver，回退到旧路径
 		applyLongContextBilling := true
 		if input.LongContextBillingEnabled != nil {
@@ -1599,7 +1605,7 @@ func (s *BillingService) calculateTokenCost(resolved *ResolvedPricing, input Cos
 	// 06:00–10:00 UTC，仅工作日；北京时间周末全天低谷）按 2× 低谷价计费。
 	// 仅作用于默认价卡（Source=LiteLLM，无分组/渠道自定义定价）——分组/渠道
 	// 自定义定价保持运营者语义，不叠加。先克隆再乘，避免污染共享 fallbackPrices 指针。
-	if resolved.Source == PricingSourceLiteLLM && isDeepSeekModel(input.Model) {
+	if resolved.Source == PricingSourceLiteLLM && isDeepSeekModel(input.Model) && (s.cfg == nil || s.cfg.Pricing.Currency != "CNY") {
 		if mult := deepseekPeakMultiplierAt(pricingAt); mult > 1 {
 			cloned := *pricing
 			cloned.InputPricePerToken *= mult
@@ -1877,6 +1883,10 @@ func (s *BillingService) applyModelSpecificPricingPolicy(model string, pricing *
 func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing *ModelPricing, forceDeepSeekRates bool, pricingAt time.Time) *ModelPricing {
 	if pricing == nil {
 		return nil
+	}
+	// CNY catalog facts are authoritative; USD built-ins cannot overwrite them.
+	if s.cfg != nil && s.cfg.Pricing.Currency == "CNY" {
+		forceDeepSeekRates = false
 	}
 	// DeepSeek 模型：无论 JSON/远端价格表给什么价，一律强制官方低谷价
 	// （Flash 三档为 2026-09-10 官方降价后口径）。这是覆盖远端旧价的关键——远端

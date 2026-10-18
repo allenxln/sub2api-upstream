@@ -11,15 +11,16 @@ import { formatScaled } from '@/utils/pricing'
 
 const props = withDefaults(
   defineProps<{
+    currency?: string
     label: string
     value: number | null
     unit: string
     scale: number
   }>(),
-  { value: null }
+  { value: null, currency: 'USD' }
 )
 
 const display = computed(() =>
-  props.value == null ? '-' : `${formatScaled(props.value, props.scale)} ${props.unit}`
+  props.value == null ? '-' : `${formatScaled(props.value, props.scale, 0, props.currency)} ${props.unit}`
 )
 </script>

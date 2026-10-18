@@ -447,6 +447,7 @@
                   v-for="(entry, idx) in section.model_pricing"
                   :key="idx"
                   :entry="entry"
+                  :currency="pricingCurrency"
                   :platform="section.platform"
                   enable-time-pricing
                   enable-tier-multipliers
@@ -579,6 +580,7 @@
                       v-for="(entry, pIdx) in rule.pricing"
                       :key="pIdx"
                       :entry="entry"
+                  :currency="pricingCurrency"
                       :platform="section.platform"
                       @update="rule.pricing.splice(pIdx, 1, $event)"
                       @remove="removeRulePricingEntry(sIdx, ruleIndex, pIdx)"
@@ -633,6 +635,8 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { adminAPI } from '@/api/admin'
+import { getPricingCapabilities } from '@/api/admin/channels'
+const pricingCurrency = ref<string | null>(null)
 import type { Channel, ChannelModelPricing, CreateChannelRequest, UpdateChannelRequest, AccountStatsPricingRule } from '@/api/admin/channels'
 import type { PricingFormEntry } from '@/components/admin/channel/types'
 import { apiIntervalsToForm, apiTimePricingToForm, createDefaultTimePricingForm, findModelConflict, formIntervalsToAPI, formReasoningEffortMultipliersToAPI, formTimePricingToAPI, isValidPositiveMultiplier, mTokToPerToken, perTokenToMTok, validateIntervals, validateReasoningEffortMultipliers, validateTimePricing } from '@/components/admin/channel/types'
@@ -1687,6 +1691,7 @@ async function confirmDelete() {
 
 // ── Lifecycle ──
 onMounted(() => {
+  getPricingCapabilities().then(value => { pricingCurrency.value = value.currency }).catch(() => { pricingCurrency.value = null })
   loadChannels()
   loadGroups()
   loadWebSearchGlobalState()

@@ -210,27 +210,29 @@ var (
 // LiteLLMModelPricing LiteLLM价格数据结构
 // 只保留我们需要的字段，使用指针来处理可能缺失的值
 type LiteLLMModelPricing struct {
-	CacheCreationInputTokenCostExplicit bool    `json:"-"`
-	InputCostPerToken                   float64 `json:"input_cost_per_token"`
-	InputCostPerTokenPriority           float64 `json:"input_cost_per_token_priority"`
-	OutputCostPerToken                  float64 `json:"output_cost_per_token"`
-	OutputCostPerTokenPriority          float64 `json:"output_cost_per_token_priority"`
-	CacheCreationInputTokenCost         float64 `json:"cache_creation_input_token_cost"`
-	CacheCreationInputTokenCostPriority float64 `json:"cache_creation_input_token_cost_priority"`
-	CacheCreationInputTokenCostAbove1hr float64 `json:"cache_creation_input_token_cost_above_1hr"`
-	CacheReadInputTokenCost             float64 `json:"cache_read_input_token_cost"`
-	CacheReadInputTokenCostPriority     float64 `json:"cache_read_input_token_cost_priority"`
-	LongContextInputTokenThreshold      int     `json:"long_context_input_token_threshold,omitempty"`
-	LongContextInputCostMultiplier      float64 `json:"long_context_input_cost_multiplier,omitempty"`
-	LongContextOutputCostMultiplier     float64 `json:"long_context_output_cost_multiplier,omitempty"`
-	SupportsServiceTier                 bool    `json:"supports_service_tier"`
-	LiteLLMProvider                     string  `json:"litellm_provider"`
-	Mode                                string  `json:"mode"`
-	SupportsPromptCaching               bool    `json:"supports_prompt_caching"`
-	OutputCostPerImage                  float64 `json:"output_cost_per_image"`       // 图片生成模型每张图片价格
-	OutputCostPerImageToken             float64 `json:"output_cost_per_image_token"` // 图片输出 token 价格
-	InputCostPerImageToken              float64 `json:"input_cost_per_image_token"`  // 图片输入 token 价格（如 gpt-image-2 图片编辑）
-	CacheReadInputImageTokenCost        float64 `json:"cache_read_input_image_token_cost"`
+	// Pricing carries catalog-owned native tiers and time rules in the catalog currency.
+	Pricing                             *ChannelModelPricing `json:"pricing,omitempty"`
+	CacheCreationInputTokenCostExplicit bool                 `json:"-"`
+	InputCostPerToken                   float64              `json:"input_cost_per_token"`
+	InputCostPerTokenPriority           float64              `json:"input_cost_per_token_priority"`
+	OutputCostPerToken                  float64              `json:"output_cost_per_token"`
+	OutputCostPerTokenPriority          float64              `json:"output_cost_per_token_priority"`
+	CacheCreationInputTokenCost         float64              `json:"cache_creation_input_token_cost"`
+	CacheCreationInputTokenCostPriority float64              `json:"cache_creation_input_token_cost_priority"`
+	CacheCreationInputTokenCostAbove1hr float64              `json:"cache_creation_input_token_cost_above_1hr"`
+	CacheReadInputTokenCost             float64              `json:"cache_read_input_token_cost"`
+	CacheReadInputTokenCostPriority     float64              `json:"cache_read_input_token_cost_priority"`
+	LongContextInputTokenThreshold      int                  `json:"long_context_input_token_threshold,omitempty"`
+	LongContextInputCostMultiplier      float64              `json:"long_context_input_cost_multiplier,omitempty"`
+	LongContextOutputCostMultiplier     float64              `json:"long_context_output_cost_multiplier,omitempty"`
+	SupportsServiceTier                 bool                 `json:"supports_service_tier"`
+	LiteLLMProvider                     string               `json:"litellm_provider"`
+	Mode                                string               `json:"mode"`
+	SupportsPromptCaching               bool                 `json:"supports_prompt_caching"`
+	OutputCostPerImage                  float64              `json:"output_cost_per_image"`       // 图片生成模型每张图片价格
+	OutputCostPerImageToken             float64              `json:"output_cost_per_image_token"` // 图片输出 token 价格
+	InputCostPerImageToken              float64              `json:"input_cost_per_image_token"`  // 图片输入 token 价格（如 gpt-image-2 图片编辑）
+	CacheReadInputImageTokenCost        float64              `json:"cache_read_input_image_token_cost"`
 	// CacheStorageCostPerTokenPerHour 显式上下文缓存存储单价（每 token 每小时，USD），一般由定价覆盖文件提供，
 	// 配置后优先于内置价（见 BillingService.CacheStoragePricePerTokenHour）。
 	CacheStorageCostPerTokenPerHour float64 `json:"cache_storage_cost_per_token_per_hour"`
@@ -249,27 +251,28 @@ type PricingRemoteClient interface {
 
 // LiteLLMRawEntry 用于解析原始JSON数据
 type LiteLLMRawEntry struct {
-	InputCostPerToken                   *float64 `json:"input_cost_per_token"`
-	InputCostPerTokenPriority           *float64 `json:"input_cost_per_token_priority"`
-	OutputCostPerToken                  *float64 `json:"output_cost_per_token"`
-	OutputCostPerTokenPriority          *float64 `json:"output_cost_per_token_priority"`
-	CacheCreationInputTokenCost         *float64 `json:"cache_creation_input_token_cost"`
-	CacheCreationInputTokenCostPriority *float64 `json:"cache_creation_input_token_cost_priority"`
-	CacheCreationInputTokenCostAbove1hr *float64 `json:"cache_creation_input_token_cost_above_1hr"`
-	CacheReadInputTokenCost             *float64 `json:"cache_read_input_token_cost"`
-	CacheReadInputTokenCostPriority     *float64 `json:"cache_read_input_token_cost_priority"`
-	LongContextInputTokenThreshold      *int     `json:"long_context_input_token_threshold"`
-	LongContextInputCostMultiplier      *float64 `json:"long_context_input_cost_multiplier"`
-	LongContextOutputCostMultiplier     *float64 `json:"long_context_output_cost_multiplier"`
-	SupportsServiceTier                 bool     `json:"supports_service_tier"`
-	LiteLLMProvider                     string   `json:"litellm_provider"`
-	Mode                                string   `json:"mode"`
-	SupportsPromptCaching               bool     `json:"supports_prompt_caching"`
-	OutputCostPerImage                  *float64 `json:"output_cost_per_image"`
-	OutputCostPerImageToken             *float64 `json:"output_cost_per_image_token"`
-	InputCostPerImageToken              *float64 `json:"input_cost_per_image_token"`
-	CacheReadInputImageTokenCost        *float64 `json:"cache_read_input_image_token_cost"`
-	CacheStorageCostPerTokenPerHour     *float64 `json:"cache_storage_cost_per_token_per_hour"`
+	Pricing                             *ChannelModelPricing `json:"pricing,omitempty"`
+	InputCostPerToken                   *float64             `json:"input_cost_per_token"`
+	InputCostPerTokenPriority           *float64             `json:"input_cost_per_token_priority"`
+	OutputCostPerToken                  *float64             `json:"output_cost_per_token"`
+	OutputCostPerTokenPriority          *float64             `json:"output_cost_per_token_priority"`
+	CacheCreationInputTokenCost         *float64             `json:"cache_creation_input_token_cost"`
+	CacheCreationInputTokenCostPriority *float64             `json:"cache_creation_input_token_cost_priority"`
+	CacheCreationInputTokenCostAbove1hr *float64             `json:"cache_creation_input_token_cost_above_1hr"`
+	CacheReadInputTokenCost             *float64             `json:"cache_read_input_token_cost"`
+	CacheReadInputTokenCostPriority     *float64             `json:"cache_read_input_token_cost_priority"`
+	LongContextInputTokenThreshold      *int                 `json:"long_context_input_token_threshold"`
+	LongContextInputCostMultiplier      *float64             `json:"long_context_input_cost_multiplier"`
+	LongContextOutputCostMultiplier     *float64             `json:"long_context_output_cost_multiplier"`
+	SupportsServiceTier                 bool                 `json:"supports_service_tier"`
+	LiteLLMProvider                     string               `json:"litellm_provider"`
+	Mode                                string               `json:"mode"`
+	SupportsPromptCaching               bool                 `json:"supports_prompt_caching"`
+	OutputCostPerImage                  *float64             `json:"output_cost_per_image"`
+	OutputCostPerImageToken             *float64             `json:"output_cost_per_image_token"`
+	InputCostPerImageToken              *float64             `json:"input_cost_per_image_token"`
+	CacheReadInputImageTokenCost        *float64             `json:"cache_read_input_image_token_cost"`
+	CacheStorageCostPerTokenPerHour     *float64             `json:"cache_storage_cost_per_token_per_hour"`
 }
 
 // PricingService 动态价格服务
@@ -302,6 +305,14 @@ func NewPricingService(cfg *config.Config, remoteClient PricingRemoteClient) *Pr
 
 // Initialize 初始化价格服务
 func (s *PricingService) Initialize() error {
+	if s.Currency() == "CNY" {
+		if s.cfg.Pricing.RemoteURL != "" || s.cfg.Pricing.HashURL != "" {
+			return fmt.Errorf("CNY catalog requires an explicit local source; USD remote sync must be disabled")
+		}
+		if err := s.validateCustomPricingFiles(); err != nil {
+			return err
+		}
+	}
 	// 确保数据目录存在
 	if err := os.MkdirAll(s.cfg.Pricing.DataDir, 0755); err != nil {
 		logger.LegacyPrintf("service.pricing", "[Pricing] Failed to create data directory: %v", err)
@@ -520,6 +531,9 @@ func (s *PricingService) validateCustomPricingFiles() error {
 		if err := json.Unmarshal(body, &entries); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
+		if err := s.validateCatalogCurrency(entries); err != nil {
+			return fmt.Errorf("%s: %w", p, err)
+		}
 	}
 	return nil
 }
@@ -661,6 +675,9 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("parse raw JSON: %w", err)
 	}
+	if err := s.validateCatalogCurrency(rawData); err != nil {
+		return nil, err
+	}
 	rawData = s.applyPricingOverrides(rawData)
 
 	result := make(map[string]*LiteLLMModelPricing)
@@ -686,11 +703,17 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 
 		pricing := &LiteLLMModelPricing{
+			Pricing:               entry.Pricing,
 			LiteLLMProvider:       entry.LiteLLMProvider,
 			Mode:                  entry.Mode,
 			SupportsPromptCaching: entry.SupportsPromptCaching,
 			SupportsServiceTier:   entry.SupportsServiceTier,
 			TokenPricingAbsent:    entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
+		}
+		if entry.Pricing != nil {
+			if err := validatePricingEntries([]ChannelModelPricing{*entry.Pricing}); err != nil {
+				return nil, fmt.Errorf("invalid catalog pricing %s: %w", modelName, err)
+			}
 		}
 
 		if entry.InputCostPerToken != nil {
@@ -1224,6 +1247,9 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 	if pricing := s.lookupIdentifiedModelPricingLocked(lookupCandidates); pricing != nil {
 		return pricing
 	}
+	if s.Currency() == "CNY" {
+		return nil
+	}
 
 	// 4. 基于模型系列匹配（Claude）
 	if pricing := s.matchByModelFamily(lookupCandidates[0]); pricing != nil {
@@ -1709,6 +1735,7 @@ func (s *PricingService) GetStatus() map[string]any {
 	defer s.mu.RUnlock()
 
 	return map[string]any{
+		"currency":     s.Currency(),
 		"model_count":  len(s.pricingData),
 		"last_updated": s.lastUpdated,
 		"local_hash":   s.localHash[:min(8, len(s.localHash))],
@@ -1722,12 +1749,38 @@ func (s *PricingService) ForceUpdate() error {
 
 // getPricingFilePath 获取价格文件路径
 func (s *PricingService) getPricingFilePath() string {
+	if s.Currency() == "CNY" {
+		return filepath.Join(s.cfg.Pricing.DataDir, "model_pricing.cny.json")
+	}
 	return filepath.Join(s.cfg.Pricing.DataDir, "model_pricing.json")
 }
 
 // getHashFilePath 获取哈希文件路径
 func (s *PricingService) getHashFilePath() string {
+	if s.Currency() == "CNY" {
+		return filepath.Join(s.cfg.Pricing.DataDir, "model_pricing.cny.sha256")
+	}
 	return filepath.Join(s.cfg.Pricing.DataDir, "model_pricing.sha256")
+}
+
+func (s *PricingService) Currency() string {
+	if s != nil && s.cfg != nil && s.cfg.Pricing.Currency == "CNY" {
+		return "CNY"
+	}
+	return "USD"
+}
+
+func (s *PricingService) validateCatalogCurrency(entries map[string]json.RawMessage) error {
+	if s.Currency() != "CNY" {
+		return nil
+	}
+	var metadata struct {
+		Currency string `json:"currency"`
+	}
+	if err := json.Unmarshal(entries["_meta"], &metadata); err != nil || metadata.Currency != "CNY" {
+		return fmt.Errorf("CNY pricing requires catalog _meta.currency=CNY")
+	}
+	return nil
 }
 
 // ListModelNamesByProvider returns all model names in the catalog whose

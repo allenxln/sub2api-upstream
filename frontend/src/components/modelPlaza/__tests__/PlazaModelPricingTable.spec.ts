@@ -44,6 +44,7 @@ function mountTable(
   rateMultiplier: number,
   userRateMultiplier?: number | null,
   extraProps?: {
+    currency?: string
     imageRateIndependent?: boolean
     imageRateMultiplier?: number | null
     videoRateIndependent?: boolean
@@ -98,6 +99,14 @@ describe('PlazaModelPricingTable', () => {
     })
     expect(wrapper.text()).toContain('720p')
     expect(wrapper.text()).toContain('$1.00')
+    wrapper.unmount()
+  })
+
+  it('native CNY amounts display yuan and apply the existing group rate without FX', () => {
+    const wrapper = mountTable([tokenModel()], .5, undefined, {currency:'CNY'})
+    expect(wrapper.text()).toContain('¥1.50')
+    expect(wrapper.text()).toContain('¥3.00')
+    expect(wrapper.text()).not.toContain('$3.00')
     wrapper.unmount()
   })
 

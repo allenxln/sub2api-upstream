@@ -600,7 +600,7 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 
 // GetPricingCapabilities advertises pricing features implemented by this running binary.
 func (h *ChannelHandler) GetPricingCapabilities(c *gin.Context) {
-	response.Success(c, gin.H{"time_pricing_excluded_dates": true})
+	response.Success(c, gin.H{"time_pricing_excluded_dates": true, "currency": h.pricingService.Currency()})
 }
 
 // GetModelDefaultPricing 获取模型的默认定价（用于前端自动填充）

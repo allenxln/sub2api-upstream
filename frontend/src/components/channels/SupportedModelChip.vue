@@ -66,45 +66,45 @@
             </div>
 
             <template v-if="model.pricing.billing_mode === BILLING_MODE_TOKEN">
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 :label="t(prefixKey('inputPrice'))"
                 :value="model.pricing.input_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 :label="t(prefixKey('outputPrice'))"
                 :value="model.pricing.output_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 :label="t(prefixKey('cacheWrite5mPrice'))"
                 :value="model.pricing.cache_write_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 v-if="model.pricing.cache_write_1h_price != null"
                 :label="t(prefixKey('cacheWrite1hPrice'))"
                 :value="model.pricing.cache_write_1h_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 :label="t(prefixKey('cacheReadPrice'))"
                 :value="model.pricing.cache_read_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 v-if="model.pricing.image_input_price != null && model.pricing.image_input_price > 0"
                 :label="t(prefixKey('imageInputPrice'))"
                 :value="model.pricing.image_input_price"
                 :unit="t(prefixKey('unitPerMillion'))"
                 :scale="perMillionScale"
               />
-              <PricingRow
+              <PricingRow :currency="props.currency"
                 v-if="model.pricing.image_output_price != null && model.pricing.image_output_price > 0"
                 :label="t(prefixKey('imageOutputPrice'))"
                 :value="model.pricing.image_output_price"
@@ -113,7 +113,7 @@
               />
             </template>
 
-            <PricingRow
+            <PricingRow :currency="props.currency"
               v-if="
                 model.pricing.billing_mode === BILLING_MODE_PER_REQUEST &&
                 model.pricing.per_request_price != null
@@ -124,7 +124,7 @@
               :scale="1"
             />
 
-            <PricingRow
+            <PricingRow :currency="props.currency"
               v-if="
                 model.pricing.billing_mode === BILLING_MODE_IMAGE &&
                 model.pricing.image_output_price != null
@@ -135,7 +135,7 @@
               :scale="1"
             />
 
-            <PricingRow
+            <PricingRow :currency="props.currency"
               v-if="model.pricing.billing_mode === BILLING_MODE_VIDEO && model.pricing.per_request_price != null"
               :label="t(prefixKey('videoPrice'))"
               :value="model.pricing.per_request_price"
@@ -192,6 +192,7 @@ import { platformBadgeClass, platformBorderClass, platformBadgeLightClass } from
 
 const props = withDefaults(
   defineProps<{
+    currency?: string
     model: UserSupportedModel
     /** i18n 前缀：管理端传 `admin.availableChannels.pricing`，用户端传 `availableChannels.pricing`。 */
     pricingKeyPrefix?: string
@@ -204,6 +205,7 @@ const props = withDefaults(
     platformHint?: string
   }>(),
   {
+    currency: 'USD',
     pricingKeyPrefix: 'availableChannels.pricing',
     noPricingLabel: '',
     showPlatform: true,
@@ -258,14 +260,14 @@ function formatRange(min: number, max: number | null): string {
 
 function formatInterval(iv: UserPricingInterval, pricing: UserSupportedModelPricing): string {
   if (pricing.billing_mode === BILLING_MODE_VIDEO) {
-    return `${formatScaled(iv.per_request_price, 1)} ${t(prefixKey('unitPerSecond'))}`
+    return `${formatScaled(iv.per_request_price, 1, 0, props.currency)} ${t(prefixKey('unitPerSecond'))}`
   }
   if (pricing.billing_mode === BILLING_MODE_PER_REQUEST || pricing.billing_mode === BILLING_MODE_IMAGE) {
-    return formatScaled(iv.per_request_price, 1)
+    return formatScaled(iv.per_request_price, 1, 0, props.currency)
   }
   const resolved = resolveIntervalPrices(iv, pricing)
-  const input = formatScaled(resolved.input_price, perMillionScale)
-  const output = formatScaled(resolved.output_price, perMillionScale)
+  const input = formatScaled(resolved.input_price, perMillionScale, 0, props.currency)
+  const output = formatScaled(resolved.output_price, perMillionScale, 0, props.currency)
   return `${input} / ${output}`
 }
 

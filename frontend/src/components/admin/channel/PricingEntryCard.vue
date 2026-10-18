@@ -104,7 +104,7 @@
           <!-- Default prices (fallback when no interval matches) -->
           <label class="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t('admin.channels.form.defaultPrices') }}
-            <span class="ml-1 font-normal text-gray-400">$/MTok</span>
+            <span class="ml-1 font-normal text-gray-400">{{ pricingCurrencySymbol(props.currency) }}/MTok</span>
           </label>
           <div class="pricing-default-grid mt-1 grid gap-2">
             <div>
@@ -173,6 +173,7 @@
                 v-for="(iv, idx) in entry.intervals"
                 :key="idx"
                 :interval="iv"
+              :currency="props.currency"
                 :mode="entry.billing_mode"
                 :enable-multipliers="enableTierMultipliers"
                 @update="updateInterval(idx, $event)"
@@ -214,6 +215,7 @@
               v-for="(iv, idx) in entry.intervals"
               :key="idx"
               :interval="iv"
+              :currency="props.currency"
               :mode="entry.billing_mode"
               @update="updateInterval(idx, $event)"
               @remove="removeInterval(idx)"
@@ -250,6 +252,7 @@
               v-for="(iv, idx) in entry.intervals"
               :key="idx"
               :interval="iv"
+              :currency="props.currency"
               :mode="entry.billing_mode"
               @update="updateInterval(idx, $event)"
               @remove="removeInterval(idx)"
@@ -300,6 +303,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { pricingCurrencySymbol } from '@/utils/pricing'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -315,12 +319,14 @@ import channelsAPI from '@/api/admin/channels'
 const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
+  currency?: string | null
   entry: PricingFormEntry
   platform?: string
   hideTokenIntervals?: boolean
   enableTimePricing?: boolean
   enableTierMultipliers?: boolean
 }>(), {
+  currency: 'USD',
   hideTokenIntervals: false,
   enableTimePricing: false,
   enableTierMultipliers: false,

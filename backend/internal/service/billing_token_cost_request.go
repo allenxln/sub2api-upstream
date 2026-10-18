@@ -21,17 +21,14 @@ type TokenCostRequest struct {
 }
 
 // CalculateTokenCostForRequest 按通用网关的路径选择计算 token 费用：
-//  1. 分组/渠道显式定价，或有解析器与分组 → 统一计费
+//  1. 已解析定价或有解析器 → 统一计费（不要求分组）
 //     （区间、分组卡、目录长上下文阶梯均在其中，阶梯由目录数据驱动）；
 //  2. 否则按模型目录直接计费。
 //
 // 模型广场的阶梯表查询与网关使用同一入口，保证展示与扣费同源。
 func (s *BillingService) CalculateTokenCostForRequest(req TokenCostRequest) (*CostBreakdown, error) {
 	resolved := req.Resolved
-	if resolved != nil && (resolved.Source == PricingSourceGroup || resolved.Source == PricingSourceChannel) {
-		return s.CalculateCostUnified(s.tokenCostInput(req, resolved))
-	}
-	if req.Resolver != nil && req.Group != nil {
+	if resolved != nil || req.Resolver != nil {
 		return s.CalculateCostUnified(s.tokenCostInput(req, resolved))
 	}
 	if req.ReasoningEffort != "" {

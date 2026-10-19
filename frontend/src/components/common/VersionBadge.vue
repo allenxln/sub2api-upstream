@@ -286,7 +286,7 @@
                     />
                   </svg>
                   <p class="text-xs text-blue-600 dark:text-blue-400">
-                    {{ t('version.sourceModeHint') }}
+                    {{ t(buildType === 'managed' ? 'version.managedImageHint' : 'version.sourceModeHint') }}
                   </p>
                 </div>
               </div>
@@ -414,7 +414,7 @@
                           />
                         </svg>
                         <p class="min-w-0 flex-1 text-xs leading-4 text-blue-600 dark:text-blue-400">
-                          {{ t('version.rollbackSourceHint') }}
+                          {{ t(buildType === 'managed' ? 'version.managedImageHint' : 'version.rollbackSourceHint') }}
                         </p>
                       </div>
 

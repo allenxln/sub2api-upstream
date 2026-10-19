@@ -185,3 +185,22 @@ func TestUpdateServiceRollbackToVersionAcceptsVPrefix(t *testing.T) {
 	require.NotErrorIs(t, err, ErrRollbackVersionNotAllowed)
 	require.Contains(t, err.Error(), "no compatible release found")
 }
+
+func TestManagedBuildRejectsBinaryReplacementBeforeIO(t *testing.T) {
+	for _, operation := range []string{"update", "backup rollback", "version rollback"} {
+		t.Run(operation, func(t *testing.T) {
+			svc := NewUpdateService(nil, nil, "0.2.16", "managed")
+			var err error
+			switch operation {
+			case "update":
+				err = svc.PerformUpdate(context.Background())
+			case "backup rollback":
+				err = svc.Rollback()
+			case "version rollback":
+				err = svc.RollbackToVersion(context.Background(), "0.2.15")
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "managed image")
+		})
+	}
+}

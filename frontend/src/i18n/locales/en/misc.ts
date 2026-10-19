@@ -30,6 +30,7 @@ export default {
     viewChangelog: 'View Changelog',
     refresh: 'Refresh',
     sourceMode: 'Source Build',
+    managedImageHint: 'Managed image: update or roll back through the image release process to preserve custom behavior.',
     sourceModeHint: 'Source build, use git pull to update',
     updateNow: 'Update Now',
     updating: 'Updating...',

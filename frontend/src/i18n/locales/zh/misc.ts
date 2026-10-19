@@ -30,6 +30,7 @@ export default {
     viewChangelog: '查看更新日志',
     refresh: '刷新',
     sourceMode: '源码构建',
+    managedImageHint: '定制镜像版本，请通过受控镜像发布流程升级或回滚，以保留计价等定制功能。',
     sourceModeHint: '源码构建请使用 git pull 更新',
     updateNow: '立即更新',
     updating: '正在更新...',

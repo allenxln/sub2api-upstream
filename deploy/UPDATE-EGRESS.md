@@ -7,10 +7,10 @@ The version menu continues checking upstream releases and directs administrators
 to the pinned image release process. Official `release` builds keep their existing
 binary update behavior. This is not an automatic upstream merge or release job.
 
-`update-egress.py` provisions an independent Xray pair using the existing trusted
-server binary and a supplied SHA256. It does not restart the existing proxy,
+`update-egress.py` provisions an independent Xray pair using trusted binaries staged on
+both hosts and a supplied SHA256. It does not restart the existing proxy,
 Sub2API, PostgreSQL, Redis or the host. Supply SSH destinations, public endpoint,
-source IP, server name and the application's Docker bridge gateway explicitly.
+source IP, server name, the application's Docker bridge gateway and subnet explicitly.
 Existing installations are refused rather than silently replacing credentials.
 
 Each host's `/etc/sub2api-update-egress/config.json` is that endpoint's authority.

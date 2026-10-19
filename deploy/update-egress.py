@@ -5,7 +5,6 @@ Secrets are generated in memory and sent over SSH stdin, never printed. Each
 endpoint owns one dedicated systemd unit and config; existing Xray stays intact.
 """
 import argparse
-import hashlib
 import json
 import secrets
 import shlex
@@ -31,16 +30,21 @@ def write(host, path, data):
     remote(host, 'umask 077; cat > ' + shlex.quote(path), data)
 
 
-def unit(server, source_ip, port):
+def unit(server, source_ip, port, client_subnet, client_listen, proxy_port):
     firewall = ''
     if server:
         rule = (f'INPUT -p tcp --dport {port} ! -s {source_ip} '
                 '-m comment --comment sub2api-update-egress -j DROP')
         firewall = (f'ExecStartPre=+/bin/sh -c "iptables -C {rule} 2>/dev/null || iptables -I {rule}"\n'
                     f'ExecStopPost=+/bin/sh -c "iptables -D {rule} 2>/dev/null || true"\n')
+    else:
+        rule = (f'INPUT -p tcp -s {client_subnet} -d {client_listen} '
+                f'--dport {proxy_port} -m comment --comment sub2api-update-egress -j ACCEPT')
+        firewall = (f'ExecStartPre=+/bin/sh -c "iptables -C {rule} 2>/dev/null || iptables -I {rule}"\n'
+                    f'ExecStopPost=+/bin/sh -c "iptables -D {rule} 2>/dev/null || true"\n')
     return (f'[Unit]\nDescription=Sub2API private GitHub download egress\n'
             'Wants=network-online.target\nAfter=network-online.target docker.service\n'
-            '[Service]\nType=simple\nUser=nobody\nGroup=nogroup\n'
+            '[Service]\nType=simple\nUser=sub2api-update-egress\nGroup=sub2api-update-egress\n'
             + firewall + f'ExecStartPre={BINARY} run -test -config {CONFIG}/config.json\n'
             f'ExecStart={BINARY} run -config {CONFIG}/config.json\n'
             'Restart=always\nRestartSec=5\nNoNewPrivileges=true\nPrivateTmp=true\n'
@@ -52,19 +56,23 @@ def unit(server, source_ip, port):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ['server-ssh', 'client-ssh', 'server-ip', 'source-ip',
-                 'server-name', 'client-listen', 'binary-sha256']:
+                 'server-name', 'client-listen', 'client-subnet', 'binary-sha256']:
         p.add_argument('--' + name, required=True)
+    p.add_argument('--server-binary', default='/usr/local/bin/xray')
+    p.add_argument('--client-binary', required=True)
     p.add_argument('--port', type=int, default=18444)
     p.add_argument('--proxy-port', type=int, default=18083)
     a = p.parse_args()
     import ipaddress
     for value in [a.server_ip, a.source_ip, a.client_listen]:
         ipaddress.ip_address(value)
+    ipaddress.ip_network(a.client_subnet)
     for host in [a.server_ssh, a.client_ssh]:
         remote(host, f'test ! -e {CONFIG} && test ! -e /etc/systemd/system/{UNIT}')
-    binary = remote(a.server_ssh, 'cat /usr/local/bin/xray')
-    if hashlib.sha256(binary).hexdigest() != a.binary_sha256:
-        raise RuntimeError('Trusted binary checksum mismatch')
+    for host, path in [(a.server_ssh, a.server_binary), (a.client_ssh, a.client_binary)]:
+        actual = remote(host, 'sha256sum ' + shlex.quote(path)).decode().split()[0]
+        if actual != a.binary_sha256:
+            raise RuntimeError('Trusted binary checksum mismatch')
     keys = remote(a.server_ssh, '/usr/local/bin/xray x25519').decode().splitlines()
     keys = {k.strip().lower(): v.strip() for k, v in
             (line.split(':', 1) for line in keys if ':' in line)}
@@ -96,11 +104,13 @@ def main():
                 'password': public, 'shortId': short}}}]}
     # Prepare both endpoints completely before starting either one.
     for host, config, is_server in [(a.server_ssh, server, True), (a.client_ssh, client, False)]:
-        remote(host, f'install -d -m 750 -g nogroup {CONFIG}; install -d -m 755 {BINARY.rsplit("/", 1)[0]}')
-        write(host, BINARY, binary)
+        remote(host, 'id -u sub2api-update-egress >/dev/null 2>&1 || useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin sub2api-update-egress')
+        remote(host, f'install -d -m 750 -g sub2api-update-egress {CONFIG}; install -d -m 755 {BINARY.rsplit("/", 1)[0]}')
+        source = a.server_binary if is_server else a.client_binary
+        remote(host, 'install -m 755 ' + shlex.quote(source) + ' ' + BINARY)
         write(host, CONFIG + '/config.json', json.dumps(config).encode())
-        remote(host, f'chmod 755 {BINARY}; chown root:nogroup {CONFIG}/config.json; chmod 640 {CONFIG}/config.json; {BINARY} run -test -config {CONFIG}/config.json')
-        write(host, '/etc/systemd/system/' + UNIT, unit(is_server, a.source_ip, a.port).encode())
+        remote(host, f'chmod 755 {BINARY}; chown root:sub2api-update-egress {CONFIG}/config.json; chmod 640 {CONFIG}/config.json; {BINARY} run -test -config {CONFIG}/config.json')
+        write(host, '/etc/systemd/system/' + UNIT, unit(is_server, a.source_ip, a.port, a.client_subnet, a.client_listen, a.proxy_port).encode())
         remote(host, f'chmod 644 /etc/systemd/system/{UNIT}; systemd-analyze verify /etc/systemd/system/{UNIT}')
     proxy = f'http://{account["user"]}:{account["pass"]}@{a.client_listen}:{a.proxy_port}'
     write(a.client_ssh, CONFIG + '/updater.env', f'UPDATE_PROXY_URL={proxy}\n'.encode())

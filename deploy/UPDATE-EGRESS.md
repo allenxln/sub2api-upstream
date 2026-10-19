@@ -43,3 +43,11 @@ no application uses them. After application adoption, first restore its previous
 proxy setting through the same controlled release process. Retain the original
 pinned application image and never restore an old financial database over new
 transactions.
+
+A release receipt records the actual image and binary digests separately from
+historical business capability attestations. Preserve exact existing business
+proofs and frozen work-order payloads; a metadata or updater-only rebuild does
+not justify rewriting their identities. Archive still-active proof material in
+the live data/configuration directory, not an expiring backup directory, and
+record its original provenance and hash. Verify window/billing code and migration
+inputs against the deployed source before declaring capability continuity.

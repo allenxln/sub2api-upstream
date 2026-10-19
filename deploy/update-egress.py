@@ -73,7 +73,7 @@ def main():
         actual = remote(host, 'sha256sum ' + shlex.quote(path)).decode().split()[0]
         if actual != a.binary_sha256:
             raise RuntimeError('Trusted binary checksum mismatch')
-    keys = remote(a.server_ssh, '/usr/local/bin/xray x25519').decode().splitlines()
+    keys = remote(a.server_ssh, shlex.quote(a.server_binary) + ' x25519').decode().splitlines()
     keys = {k.strip().lower(): v.strip() for k, v in
             (line.split(':', 1) for line in keys if ':' in line)}
     private = next(v for k, v in keys.items() if k.startswith('private'))

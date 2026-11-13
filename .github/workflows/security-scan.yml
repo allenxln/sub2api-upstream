@@ -22,11 +22,7 @@ jobs:
           check-latest: false
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: |
-          expected_go="$(awk '$1 == "go" { print $2; exit }' backend/go.mod)"
-          test "$(go env GOVERSION)" = "go${expected_go}"
-          docker_go="$(sed -n 's/^ARG GOLANG_IMAGE=golang:\(.*\)-alpine$/\1/p' Dockerfile)"
-          test "$docker_go" = "$expected_go"
+        run: bash "${{ github.workspace }}/scripts/verify-go-version.sh"
       - name: Run govulncheck
         working-directory: backend
         run: |

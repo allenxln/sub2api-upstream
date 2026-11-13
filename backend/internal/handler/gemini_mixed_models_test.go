@@ -152,6 +152,20 @@ type geminiDeclaredModelsFixture struct {
 	upstream *geminiModelsUpstreamCounter
 }
 
+func TestGeminiDecisionsAliasDiscoveryUsesMappedCapabilities(t *testing.T) {
+	f := newGeminiDeclaredModelsFixture(t, []service.Account{{ID: 1, Platform: service.PlatformGemini, Type: service.AccountTypeAPIKey,
+		Credentials: map[string]any{"api_key": "synthetic-key", "model_mapping": map[string]any{"decision-alias": "gemini-decision-1"}},
+	}})
+	c, rec := f.context("/v1beta/models", "", service.GroupModelAllowlist{})
+	f.handler.GeminiV1BetaListModels(c)
+	require.Equal(t, 200, rec.Code)
+	require.JSONEq(t, `{"models":[{"name":"models/decision-alias","supportedGenerationMethods":["decisions"]}]}`, rec.Body.String())
+	rec = f.get("decision-alias")
+	require.Equal(t, 200, rec.Code)
+	require.JSONEq(t, `{"name":"models/decision-alias","supportedGenerationMethods":["decisions"]}`, rec.Body.String())
+	require.Zero(t, f.upstream.calls)
+}
+
 func newGeminiDeclaredModelsFixture(t *testing.T, accounts []service.Account) *geminiDeclaredModelsFixture {
 	groupID := int64(47)
 	repo := &geminiAllowlistAccountRepoStub{gatewayModelsAccountRepoStub: gatewayModelsAccountRepoStub{byGroup: map[int64][]service.Account{groupID: accounts}}}

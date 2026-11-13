@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,6 +9,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 )
+
+type geminiNativeActionKey struct{}
+
+// WithGeminiNativeAction lets account eligibility enforce the operation before
+// acquiring or binding an account. The transport rechecks the complete account.
+func WithGeminiNativeAction(ctx context.Context, action string) context.Context {
+	return context.WithValue(ctx, geminiNativeActionKey{}, action)
+}
+
+func isGeminiDecisionsAccount(account *Account) bool {
+	return account != nil && account.Platform == PlatformGemini && account.Type == AccountTypeAPIKey
+}
 
 // The native transport owns proxy selection, retries and account-error policy.
 // This response adapter only preserves Decisions JSON and translates its usage.

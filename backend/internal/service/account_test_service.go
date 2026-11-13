@@ -2427,7 +2427,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	payload := createGeminiTestPayload(testModelID, prompt)
 	decisions := gemini.FallbackModel(testModelID).Supports(gemini.DecisionsAction)
 	if decisions {
-		if account.Type != AccountTypeAPIKey || account.Platform != PlatformGemini {
+		if !isGeminiDecisionsAccount(account) {
 			return s.sendErrorAndEnd(c, "Decisions requires a Gemini API key account")
 		}
 		payload = createGeminiDecisionsTestPayload(testModelID, prompt)

@@ -1107,7 +1107,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Request body is empty")
 	}
 	decisions := action == gemini.DecisionsAction
-	if decisions && (stream || account == nil || account.Platform != PlatformGemini || account.Type != AccountTypeAPIKey) {
+	if decisions && (stream || !isGeminiDecisionsAccount(account)) {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Decisions requires a non-streaming Gemini API key account")
 	}
 

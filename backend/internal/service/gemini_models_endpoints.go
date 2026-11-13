@@ -24,15 +24,16 @@ import (
 // errGeminiModelsUpstreamStatus 在 Vertex 分页读取遇到非 2xx 时中止分页，原始响应由调用方另行保存。
 var errGeminiModelsUpstreamStatus = errors.New("upstream model list returned non-2xx status")
 
-// DeclaredModelIDs 在分组内每个可调度 Gemini 账号都有生效的 model_mapping（含 Google One 的默认映射）时，
-// 返回这些映射键的并集（去重排序，通配符键原样保留）。有账号未配置映射时该账号接受任意模型，返回空，
+// DeclaredModels returns public names with capabilities derived from native
+// account mappings. Account aliases retain the mapped model's protocol.
+// 有账号未配置映射时该账号接受任意模型，返回空，
 // 模型接口由选中账号的上游应答。
-func (s *GeminiMessagesCompatService) DeclaredModelIDs(ctx context.Context, groupID *int64) ([]string, error) {
+func (s *GeminiMessagesCompatService) DeclaredModels(ctx context.Context, groupID *int64) ([]gemini.Model, error) {
 	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformGemini, true)
 	if err != nil {
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
-	seen := make(map[string]struct{})
+	seen := make(map[string]gemini.Model)
 	for i := range accounts {
 		if accounts[i].Platform != PlatformGemini {
 			continue
@@ -41,16 +42,50 @@ func (s *GeminiMessagesCompatService) DeclaredModelIDs(ctx context.Context, grou
 		if len(mapping) == 0 {
 			return nil, nil
 		}
-		for model := range mapping {
-			seen[model] = struct{}{}
+		for public, upstream := range mapping {
+			model := gemini.FallbackModel(upstream)
+			model.Name = gemini.FallbackModel(public).Name
+			if prior, ok := seen[public]; ok {
+				for _, method := range model.SupportedGenerationMethods {
+					if !slices.Contains(prior.SupportedGenerationMethods, method) {
+						prior.SupportedGenerationMethods = append(prior.SupportedGenerationMethods, method)
+					}
+				}
+				slices.Sort(prior.SupportedGenerationMethods)
+				model = prior
+			}
+			seen[public] = model
 		}
 	}
-	models := make([]string, 0, len(seen))
-	for model := range seen {
+	models := make([]gemini.Model, 0, len(seen))
+	for _, model := range seen {
 		models = append(models, model)
 	}
-	sort.Strings(models)
+	sort.Slice(models, func(i, j int) bool { return models[i].Name < models[j].Name })
 	return models, nil
+}
+
+// DeclaredGeminiModel resolves an exact or wildcard public name without losing
+// its account-derived capabilities. Allowlist expansion uses this same owner.
+func DeclaredGeminiModel(models []gemini.Model, public string) (gemini.Model, bool) {
+	normalized := normalizeRequestedModelForLookup(PlatformGemini, public)
+	result := gemini.FallbackModel(public)
+	result.SupportedGenerationMethods = nil
+	found := false
+	for _, model := range models {
+		pattern := strings.TrimPrefix(model.Name, "models/")
+		if !matchWildcard(pattern, public) && !matchWildcard(pattern, normalized) {
+			continue
+		}
+		found = true
+		for _, method := range model.SupportedGenerationMethods {
+			if !result.Supports(method) {
+				result.SupportedGenerationMethods = append(result.SupportedGenerationMethods, method)
+			}
+		}
+	}
+	slices.Sort(result.SupportedGenerationMethods)
+	return result, found
 }
 
 // DeclaredModelsCover 判断声明的模型中是否有条目覆盖 model：键末尾的 * 按前缀匹配，
@@ -77,7 +112,7 @@ func DeclaredModelsCover(declared []string, model string) bool {
 //  7. Vertex API Key 账号（列表接口不接受 API Key，只能返回内置列表）
 //
 // Vertex 账号排在所有 AI Studio 兼容账号之后，混合分组始终由 AI Studio 兼容账号应答。
-// 同级账号按 priority、最近使用时间挑选。DeclaredModelIDs 非空时模型接口按声明的模型应答，不经过选号。
+// 同级账号按 priority、最近使用时间挑选。DeclaredModels 非空时模型接口按声明的模型应答，不经过选号。
 func (s *GeminiMessagesCompatService) SelectAccountForModelsEndpoints(ctx context.Context, groupID *int64) (*Account, error) {
 	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformGemini, true)
 	if err != nil {

@@ -321,6 +321,10 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 // POST /v1beta/models/{model}:generateContent
 // POST /v1beta/models/{model}:streamGenerateContent?alt=sse
 func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
+	h.handleGeminiV1BetaRequest(c, parseGeminiModelRequest)
+}
+
+func (h *GatewayHandler) handleGeminiV1BetaRequest(c *gin.Context, parseRequest geminiNativeRequestParser) {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
 		googleError(c, http.StatusUnauthorized, "Invalid API key")
@@ -349,29 +353,6 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 	}
 
-	modelName, action, err := parseGeminiModelAction(strings.TrimPrefix(c.Param("modelAction"), "/"))
-	if err != nil {
-		googleError(c, http.StatusNotFound, err.Error())
-		return
-	}
-	// URL 里的模型名最终会被拼进上游 /v1beta/models/{model}:{action}，
-	// 先在入口校验片段合规性，见 service/upstream_path_guard.go。
-	if !service.IsSafeGeminiModelPathSegment(modelName) {
-		googleError(c, http.StatusBadRequest, "Invalid model in URL")
-		return
-	}
-	urlModel := modelName
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
-		modelName = strings.TrimSpace(resolvedModel)
-	}
-	if !middleware.HasForcePlatform(c) && servesCompositeAntigravityGemini(apiKey, effectivePlatform) && !isAntigravityGeminiModel(modelName) {
-		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
-		return
-	}
-
-	stream := action == "streamGenerateContent"
-	reqLog = reqLog.With(zap.String("model", modelName), zap.String("action", action), zap.Bool("stream", stream))
-
 	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
 		if handleRequestBodyReadError(c, reqLog, err) {
@@ -385,6 +366,21 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Request body is empty")
 		return
 	}
+	parsed, ok := parseRequest(c, body)
+	if !ok {
+		return
+	}
+	modelName, action := parsed.model, parsed.action
+	urlModel := modelName
+	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
+		modelName = strings.TrimSpace(resolvedModel)
+	}
+	if !middleware.HasForcePlatform(c) && servesCompositeAntigravityGemini(apiKey, effectivePlatform) && !isAntigravityGeminiModel(modelName) {
+		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+		return
+	}
+	stream := action == "streamGenerateContent"
+	reqLog = reqLog.With(zap.String("model", modelName), zap.String("action", action), zap.Bool("stream", stream))
 
 	setOpsRequestContext(c, modelName, stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(stream, false)))
@@ -394,12 +390,12 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, modelName)
 	reqModel := modelName // 保存映射前的原始模型名
-	if action != "countTokens" && geminiImageGenerationRejected(c, apiKey, body, urlModel, reqModel, channelMapping.MappedModel) {
+	if action != gemini.DecisionsAction && action != "countTokens" && geminiImageGenerationRejected(c, apiKey, body, urlModel, reqModel, channelMapping.MappedModel) {
 		googleError(c, http.StatusBadRequest, service.ImageGenerationPermissionMessage())
 		return
 	}
 
-	if decision := h.checkSecurityAudit(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, reqModel, body); decision != nil && !decision.AllowNextStage {
+	if decision := h.checkSecurityAudit(c, reqLog, apiKey, authSubject, parsed.moderationProtocol, reqModel, body); decision != nil && !decision.AllowNextStage {
 		googleSecurityAuditError(c, decision)
 		return
 	}
@@ -409,9 +405,12 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	}
 
 	// 引用显式缓存的请求只能发往持有该缓存的账号，且不参与会话粘性与换号。
-	cachedContentBinding, body, ok := h.resolveGeminiCachedContentBinding(c, reqLog, apiKey, modelName, body)
-	if !ok {
-		return
+	var cachedContentBinding *service.GeminiCachedContent
+	if action != gemini.DecisionsAction {
+		cachedContentBinding, body, ok = h.resolveGeminiCachedContentBinding(c, reqLog, apiKey, modelName, body)
+		if !ok {
+			return
+		}
 	}
 
 	// Get subscription (may be nil)

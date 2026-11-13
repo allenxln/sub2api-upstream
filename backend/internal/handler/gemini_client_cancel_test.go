@@ -113,6 +113,16 @@ func TestGeminiV1BetaModels_ClientCancelBeforeUpstreamResponseMarks499(t *testin
 	require.Zero(t, opsQueued)
 }
 
+func TestGeminiDecisionsDoesNotInterpretGenerativeExtensionFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	f := newGeminiClientCancelFixture(t)
+	rec, _ := f.serve(t, "/v1beta/decisions", "/v1beta/decisions",
+		`{"model":"gemini-decision-1","input":"synthetic input","questions":{"q":{"type":"noul"}},"cachedContent":"cachedContents/extension","generationConfig":{"responseModalities":["IMAGE"]}}`,
+		f.handler.GeminiV1BetaDecisions)
+	require.Equal(t, int32(1), f.upstream.calls.Load(), "Decisions extensions must reach the upstream without generative cache/image processing")
+	require.Equal(t, 499, rec.Code)
+}
+
 // Chat Completions 兼容入口（Gemini 分组）：同一场景标记 499，不再补写 502。
 func TestGatewayChatCompletions_GeminiClientCancelBeforeUpstreamResponseMarks499(t *testing.T) {
 	gin.SetMode(gin.TestMode)

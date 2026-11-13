@@ -3,6 +3,7 @@ package handler
 import (
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +33,7 @@ const (
 	EndpointVideos               = "/v1/videos"
 	EndpointSeedanceTasks        = "/api/v3/contents/generations/tasks"
 	EndpointGeminiModels         = "/v1beta/models"
+	EndpointGeminiDecisions      = gemini.DecisionsPath
 	EndpointGeminiCachedContents = "/v1beta/cachedContents"
 )
 
@@ -119,6 +121,8 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointResponses
 	case strings.Contains(path, EndpointGeminiModels):
 		return EndpointGeminiModels
+	case strings.Contains(path, EndpointGeminiDecisions):
+		return EndpointGeminiDecisions
 	case strings.Contains(path, EndpointGeminiCachedContents):
 		return EndpointGeminiCachedContents
 	default:
@@ -234,6 +238,9 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		return EndpointSystemOne
 
 	case service.PlatformGemini:
+		if inbound == EndpointGeminiDecisions {
+			return EndpointGeminiDecisions
+		}
 		if inbound == EndpointGeminiCachedContents {
 			return EndpointGeminiCachedContents
 		}

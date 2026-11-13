@@ -1130,6 +1130,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if account.Type == AccountTypeAPIKey || account.Type == AccountTypeServiceAccount {
 		mappedModel = account.GetMappedModel(originalModel)
 	}
+	if !decisions && gemini.FallbackModel(mappedModel).Supports(gemini.DecisionsAction) {
+		return nil, s.writeGoogleError(c, http.StatusBadRequest, "This model requires POST "+gemini.DecisionsPath)
+	}
 	if !decisions && action != "countTokens" && geminiImageGenerationDenied(c, body, originalModel, mappedModel) {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, ImageGenerationPermissionMessage())
 	}

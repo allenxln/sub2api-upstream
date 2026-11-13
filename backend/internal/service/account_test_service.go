@@ -28,6 +28,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
@@ -2387,6 +2388,11 @@ func geminiDefaultTestModel(account *Account) string {
 	if account.IsGeminiGoogleOne() {
 		return geminicli.GoogleOneModels[0].ID
 	}
+	if mapping := account.GetModelMapping(); account.Type == AccountTypeAPIKey && len(mapping) == 1 {
+		for model := range mapping {
+			return model
+		}
+	}
 	return geminicli.DefaultTestModel
 }
 
@@ -2419,6 +2425,13 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	// Create test payload (Gemini format)
 	payload := createGeminiTestPayload(testModelID, prompt)
+	decisions := gemini.FallbackModel(testModelID).Supports(gemini.DecisionsAction)
+	if decisions {
+		if account.Type != AccountTypeAPIKey || account.Platform != PlatformGemini {
+			return s.sendErrorAndEnd(c, "Decisions requires a Gemini API key account")
+		}
+		payload = createGeminiDecisionsTestPayload(testModelID, prompt)
+	}
 
 	// Build request based on account type
 	var req *http.Request
@@ -2460,6 +2473,9 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	}
 
 	// Process SSE stream
+	if decisions {
+		return s.processGeminiDecisionsResponse(c, resp.Body)
+	}
 	return s.processGeminiStream(c, resp.Body)
 }
 
@@ -2539,6 +2555,9 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
 		return nil, err
+	}
+	if gemini.FallbackModel(modelID).Supports(gemini.DecisionsAction) {
+		return gemini.NewDecisionsRequest(ctx, normalizedBaseURL, apiKey, modelID, payload)
 	}
 
 	// Use streamGenerateContent for real-time feedback

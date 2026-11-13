@@ -4,6 +4,7 @@ package service
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -32,6 +33,25 @@ func captureStdLog(t *testing.T) *bytes.Buffer {
 
 func newTestBillingService() *BillingService {
 	return NewBillingService(&config.Config{}, nil)
+}
+
+func TestGeminiDecisionsUSDReferenceAndCNYChannelAmounts(t *testing.T) {
+	svc := newTestBillingService()
+	cost, err := svc.CalculateCost("gemini-decision-1", UsageTokens{InputTokens: 1_000_000}, 1)
+	require.NoError(t, err)
+	// Official paid reference: USD 0.10 per million input tokens, no output charge.
+	require.Equal(t, "0.100000000000", fmt.Sprintf("%.12f", cost.TotalCost))
+	require.Zero(t, cost.OutputCost)
+
+	cnyInput, zero := 0.00000065, 0.0
+	pricing, err := svc.GetModelPricingWithChannel("gemini-decision-1", &ChannelModelPricing{InputPrice: &cnyInput, OutputPrice: &zero})
+	require.NoError(t, err)
+	cost = svc.computeTokenBreakdown(pricing, UsageTokens{InputTokens: 174}, 0.3, "", true)
+	// CNY 0.65/M * 174 = CNY 0.00011310; group 0.3 => CNY 0.00003393.
+	require.Equal(t, "0.000113100000", fmt.Sprintf("%.12f", cost.TotalCost))
+	require.Equal(t, "0.000033930000", fmt.Sprintf("%.12f", cost.ActualCost))
+	require.Zero(t, cost.OutputCost)
+	require.Zero(t, cost.CacheReadCost)
 }
 
 func newTestBillingServiceWithOpenAILadderCatalog(t *testing.T) *BillingService {

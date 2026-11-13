@@ -347,6 +347,8 @@ func RegisterGatewayRoutes(
 	{
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
+		// Decisions carries its model in JSON, so use the body-based composite resolver.
+		gemini.POST(strings.TrimPrefix(handler.EndpointGeminiDecisions, "/v1beta"), compositeTarget, h.Gateway.GeminiV1BetaDecisions)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
 		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
 		// 显式上下文缓存：网关自管资源 ID 与账号绑定，list/get 只读本地记录。

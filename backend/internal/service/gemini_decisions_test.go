@@ -118,3 +118,45 @@ func TestGeminiDecisionsUsesNativeCallerErrorAndFailoverPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestGeminiDecisionsRejectsGenerationEndpointBeforeUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"answers":{"q":{"type":"noul","noul":0.99}},"usage":{"total_input_tokens":174,"total_output_tokens":0}}`)
+	}))
+	defer server.Close()
+	upstream := &decisionsTestTransport{client: server.Client()}
+	svc := &GeminiMessagesCompatService{cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{AllowInsecureHTTP: true}}}, httpUpstream: upstream}
+	account := &Account{ID: 23, Platform: PlatformGemini, Type: AccountTypeAPIKey, Credentials: map[string]any{"base_url": server.URL, "api_key": "synthetic-key"}}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-decision-1:generateContent", nil)
+	result, err := svc.ForwardNative(context.Background(), c, account, "gemini-decision-1", "generateContent", false, []byte(`{"contents":[{"role":"user","parts":[{"text":"sample"}]}]}`))
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Zero(t, upstream.calls)
+}
+
+func TestGeminiDecisionsAdminConnectionUsesDeclaredModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1beta/decisions", r.URL.Path)
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), `"model":"gemini-decision-1"`)
+		require.Contains(t, string(body), `"questions"`)
+		_, _ = io.WriteString(w, `{"answers":{"q":{"type":"noul","noul":0.99}},"usage":{"total_input_tokens":174,"total_output_tokens":0}}`)
+	}))
+	defer server.Close()
+	upstream := &decisionsTestTransport{client: server.Client()}
+	svc := &AccountTestService{cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{AllowInsecureHTTP: true}}}, httpUpstream: upstream}
+	account := &Account{ID: 24, Platform: PlatformGemini, Type: AccountTypeAPIKey, Credentials: map[string]any{"base_url": server.URL, "api_key": "synthetic-key", "model_mapping": map[string]any{"public-decision": "gemini-decision-1"}}}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/admin/accounts/24/test", nil)
+	require.NoError(t, svc.testGeminiAccountConnection(c, account, "", "Hello, this is a synthetic test."))
+	require.Equal(t, 1, upstream.calls)
+	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
+	require.Contains(t, recorder.Body.String(), `"success":true`)
+}

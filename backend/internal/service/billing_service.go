@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
@@ -748,6 +749,10 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown: false,
 	}
 
+	// Google Decisions paid reference: USD 0.10/M input, zero output.
+	// https://aistudio.google.com/docs/pricing#gemini-decision
+	s.fallbackPrices[gemini.GeminiDecision1Model] = &ModelPricing{InputPricePerToken: 0.10 / 1_000_000}
+
 	// TypeSafe Jev bills input tokens only: $0.042 per million tokens.
 	s.fallbackPrices["jev-latest"] = &ModelPricing{
 		InputPricePerToken:  0.042 / 1_000_000,
@@ -1074,6 +1079,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	}
 	if modelLower == "jev-latest" {
 		return s.fallbackPrices["jev-latest"]
+	}
+	if model := gemini.FallbackModel(modelLower); model.Supports(gemini.DecisionsAction) {
+		return s.fallbackPrices[strings.TrimPrefix(model.Name, "models/")]
 	}
 
 	// 按模型系列匹配

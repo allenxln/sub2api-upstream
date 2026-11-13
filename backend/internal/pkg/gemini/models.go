@@ -2,13 +2,20 @@
 // It is used when upstream model listing is unavailable (e.g. OAuth token missing AI Studio scopes).
 package gemini
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 type Model struct {
 	Name                       string   `json:"name"`
 	DisplayName                string   `json:"displayName,omitempty"`
 	Description                string   `json:"description,omitempty"`
 	SupportedGenerationMethods []string `json:"supportedGenerationMethods,omitempty"`
+}
+
+func (m Model) Supports(method string) bool {
+	return slices.Contains(m.SupportedGenerationMethods, method)
 }
 
 type ModelsListResponse struct {

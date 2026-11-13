@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 var (
@@ -90,6 +92,12 @@ func extractProtocolSegments(protocol string, document any) []promptSegment {
 		return append(extractAnthropicSystem(root["system"]), extractMessages(root["messages"], clientInstructionRoles...)...)
 	case "gemini", "gemini_generate_content":
 		return extractGeminiRoot(root)
+	case service.ContentModerationProtocolGeminiDecisions:
+		// Every question and media caption belongs to the same client input.
+		// contentTexts deliberately omits image/audio/video binary payloads.
+		texts := appendJSONStringLeaves(nil, root["questions"])
+		texts = append(texts, contentTexts(root["input"])...)
+		return userPromptSegments(texts)
 	case "openai_responses", "responses", "responses_websocket":
 		if frameType := stringValue(root["type"]); frameType != "" || protocol == "responses_websocket" {
 			if frameType != "response.create" {

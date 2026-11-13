@@ -42,9 +42,9 @@
 
 **Interfaces:** `GatewayHandler.GeminiV1BetaDecisions` consumes native authentication/group context and the body model, then uses the same admission, scheduling and billing lifecycle as other Gemini requests.
 
-- [ ] Write and run failing tests for body-model admission/routing, protocol rejection, moderation and Decisions model metadata.
-- [ ] Add the native route and parser; reuse the existing request lifecycle without duplicating accounting or retry loops.
-- [ ] Verify normal Gemini/Jev regression tests and the project checks appropriate to this backend-only change; reconcile a literal billing fixture; review the complete diff and commit.
+- [x] Write and run failing tests for body-model admission/routing, protocol rejection, moderation and Decisions model metadata.
+- [x] Add the native route and parser; reuse the existing request lifecycle without duplicating accounting or retry loops.
+- [x] Verify normal Gemini/Jev regression tests and the project checks appropriate to this backend-only change; reconcile a literal billing fixture; review the complete diff and commit.
 
 ### Task 3: Candidate acceptance and delivery
 

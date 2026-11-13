@@ -5,9 +5,12 @@ package handler
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 // clientCancelUpstream 模拟上游尚未响应时客户端断开：Do 期间取消请求 context，
@@ -25,6 +29,72 @@ type clientCancelUpstream struct {
 	service.HTTPUpstream
 	cancel context.CancelFunc
 	calls  atomic.Int32
+}
+
+type decisionsHandlerUpstream struct {
+	service.HTTPUpstream
+	do func(*http.Request, int64) (*http.Response, error)
+}
+
+func (u *decisionsHandlerUpstream) Do(req *http.Request, _ string, id int64, _ int) (*http.Response, error) {
+	return u.do(req, id)
+}
+
+func TestGeminiDecisionsHandlerPreservesQuestionsAndNumbersOnSelectionAndFailover(t *testing.T) {
+	for _, failover := range []bool{false, true} {
+		t.Run(fmt.Sprint(failover), func(t *testing.T) {
+			f := newGeminiClientCancelFixture(t)
+			first := f.schedulerCache.accounts[0]
+			second := *first
+			second.ID++
+			second.Priority++
+			f.schedulerCache.accounts = append(f.schedulerCache.accounts, &second)
+			var bodies [][]byte
+			var accounts []int64
+			upstream := &decisionsHandlerUpstream{do: func(req *http.Request, id int64) (*http.Response, error) {
+				body, err := io.ReadAll(req.Body)
+				require.NoError(t, err)
+				bodies = append(bodies, body)
+				accounts = append(accounts, id)
+				if failover && id == first.ID {
+					return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"message":"synthetic failure"}}`))}, nil
+				}
+				return f.upstream.Do(req, "", id, 1)
+			}}
+			f.handler.geminiCompatService = service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, upstream, nil, &config.Config{})
+			body := `{"model":"gemini-decision-1","input":"/.gemini/tmp/` + strings.Repeat("a", 64) + `","questions":{"thoughtSignature":{"type":"noul","instructions":"Keep this question"}},"extension":{"big":9007199254740993}}`
+			rec, _ := f.serve(t, "/v1beta/decisions", "/v1beta/decisions", body, f.handler.GeminiV1BetaDecisions)
+			require.Equal(t, 499, rec.Code, rec.Body.String())
+			require.NotEmpty(t, bodies)
+			if failover {
+				require.Contains(t, accounts, second.ID)
+			}
+			for _, sent := range bodies {
+				require.True(t, gjson.GetBytes(sent, "questions.thoughtSignature").IsObject(), string(sent))
+				require.Equal(t, "9007199254740993", gjson.GetBytes(sent, "extension.big").Raw)
+			}
+		})
+	}
+}
+
+func TestGeminiDecisionsHandlerSkipsUnsupportedAccountsBeforeSelection(t *testing.T) {
+	for _, unsupportedType := range []string{service.AccountTypeOAuth, service.AccountTypeServiceAccount} {
+		t.Run(unsupportedType, func(t *testing.T) {
+			f := newGeminiClientCancelFixture(t)
+			apiKeyAccount := f.schedulerCache.accounts[0]
+			apiKeyAccount.Credentials["model_mapping"] = map[string]any{"decision-alias": "gemini-decision-1"}
+			unsupported := *apiKeyAccount
+			unsupported.ID++
+			unsupported.Priority = 0
+			unsupported.Type = unsupportedType
+			unsupported.Credentials = map[string]any{}
+			f.schedulerCache.accounts = append([]*service.Account{&unsupported}, f.schedulerCache.accounts...)
+			rec, _ := f.serve(t, "/v1beta/decisions", "/v1beta/decisions",
+				`{"model":"decision-alias","input":"synthetic input","questions":{"q":{"type":"noul"}}}`, f.handler.GeminiV1BetaDecisions)
+			require.Equal(t, 499, rec.Code, rec.Body.String())
+			require.Equal(t, int32(1), f.upstream.calls.Load())
+		})
+	}
 }
 
 func (u *clientCancelUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
@@ -111,6 +181,16 @@ func TestGeminiV1BetaModels_ClientCancelBeforeUpstreamResponseMarks499(t *testin
 	require.Equal(t, statusClientClosedRequest, rec.Code)
 	require.Zero(t, rec.Body.Len())
 	require.Zero(t, opsQueued)
+}
+
+func TestGeminiDecisionsDoesNotInterpretGenerativeExtensionFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	f := newGeminiClientCancelFixture(t)
+	rec, _ := f.serve(t, "/v1beta/decisions", "/v1beta/decisions",
+		`{"model":"gemini-decision-1","input":"synthetic input","questions":{"q":{"type":"noul"}},"cachedContent":"cachedContents/extension","generationConfig":{"responseModalities":["IMAGE"]}}`,
+		f.handler.GeminiV1BetaDecisions)
+	require.Equal(t, int32(1), f.upstream.calls.Load(), "Decisions extensions must reach the upstream without generative cache/image processing")
+	require.Equal(t, 499, rec.Code)
 }
 
 // Chat Completions 兼容入口（Gemini 分组）：同一场景标记 499，不再补写 502。

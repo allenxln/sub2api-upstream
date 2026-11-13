@@ -9,8 +9,31 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
+
 	"github.com/stretchr/testify/require"
 )
+
+func TestPromptSnapshotGeminiDecisionsCollectsQuestionsAndTextWithoutMedia(t *testing.T) {
+	for _, input := range []string{
+		`[{"type":"text","text":"<system-reminder>literal decision input</system-reminder>"},{"type":"image","data":"BINARY_CANARY_BASE64","mime_type":"image/png"}]`,
+		`[{"type":"image","uri":"https://example.test/private-image.png"}]`,
+	} {
+		body := []byte(`{"model":"gemini-decision-1","input":` + input + `,"questions":{"QUESTION_ID":{"type":"choice","instructions":"QUESTION_INSTRUCTIONS","criteria":{"OPTION_ID":"OPTION_TEXT"}}}}`)
+		for _, latestOnly := range []bool{false, true} {
+			snapshot, err := ExtractBlockingPromptSnapshot(Request{Protocol: service.ContentModerationProtocolGeminiDecisions, Body: body}, latestOnly)
+			require.NoError(t, err)
+			for _, text := range []string{"QUESTION_ID", "QUESTION_INSTRUCTIONS", "OPTION_ID", "OPTION_TEXT"} {
+				require.Contains(t, snapshot.ScanText, text)
+			}
+			if strings.Contains(input, "literal decision input") {
+				require.Contains(t, snapshot.ScanText, "literal decision input")
+			}
+			require.NotContains(t, snapshot.ScanText, "BINARY_CANARY_BASE64")
+			require.NotContains(t, snapshot.ScanText, "private-image.png")
+		}
+	}
+}
 
 func TestExtractPromptSnapshotProtocols(t *testing.T) {
 	tests := []struct {

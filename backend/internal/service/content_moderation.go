@@ -55,6 +55,7 @@ const (
 	ContentModerationProtocolOpenAIResponses   = "openai_responses"
 	ContentModerationProtocolOpenAIChat        = "openai_chat_completions"
 	ContentModerationProtocolGemini            = "gemini"
+	ContentModerationProtocolGeminiDecisions   = "gemini_decisions"
 	ContentModerationProtocolOpenAIImages      = "openai_images"
 	ContentModerationProtocolTypeSafeSystemOne = "typesafe_systemone"
 

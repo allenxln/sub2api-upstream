@@ -43,6 +43,9 @@ func extractContentModerationInput(protocol string, body []byte, filterReminders
 		collector.collectLastResponsesInput(gjson.GetBytes(body, "input"), &parts, &images)
 	case ContentModerationProtocolGemini:
 		collector.collectLastGeminiContent(gjson.GetBytes(body, "contents"), &parts, &images)
+	case ContentModerationProtocolGeminiDecisions:
+		// Decisions has no client-harness reminder blocks or conversation turns.
+		moderationTextCollector{}.collectDecisionsInput(body, &parts, &images)
 	case ContentModerationProtocolOpenAIImages:
 		collector.addModerationText(&parts, gjson.GetBytes(body, "prompt").String())
 		collector.collectContentValue(gjson.GetBytes(body, "images"), &parts, &images)
@@ -63,6 +66,22 @@ func extractContentModerationInput(protocol string, body []byte, filterReminders
 		out.Normalize()
 	}
 	return out
+}
+
+func (collector moderationTextCollector) collectDecisionsInput(body []byte, parts *[]string, images *[]string) {
+	input := gjson.GetBytes(body, "input")
+	collector.collectContentValue(input, parts, images)
+	addURI := func(block gjson.Result) {
+		if block.Get("type").String() == "image" {
+			addModerationImage(images, block.Get("uri").String())
+		}
+	}
+	if input.IsArray() {
+		input.ForEach(func(_, block gjson.Result) bool { addURI(block); return true })
+	} else {
+		addURI(input)
+	}
+	collector.collectSystemOneText(gjson.GetBytes(body, "questions"), parts)
 }
 
 // collectSystemOneInput moderates every client-controlled text of a System One

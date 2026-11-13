@@ -22,7 +22,7 @@ jobs:
           check-latest: false
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: bash "${{ github.workspace }}/scripts/verify-go-version.sh"
+        run: bash "${{ github.workspace }}/backend/scripts/verify-go-version.sh"
       - name: Run govulncheck
         working-directory: backend
         run: |

@@ -137,7 +137,7 @@ jobs:
           check-latest: false
           cache: false
       - name: Verify Go version
-        run: bash "${{ github.workspace }}/scripts/verify-go-version.sh"
+        run: bash "${{ github.workspace }}/backend/scripts/verify-go-version.sh"
       - name: Restore target-specific Go cache
         id: go-cache
         uses: actions/cache/restore@v6

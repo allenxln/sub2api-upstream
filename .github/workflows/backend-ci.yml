@@ -34,7 +34,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: bash "${{ github.workspace }}/scripts/verify-go-version.sh"
+        run: bash "${{ github.workspace }}/backend/scripts/verify-go-version.sh"
       - name: Unit tests
         working-directory: backend
         run: make test-unit
@@ -73,7 +73,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: bash "${{ github.workspace }}/scripts/verify-go-version.sh"
+        run: bash "${{ github.workspace }}/backend/scripts/verify-go-version.sh"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:

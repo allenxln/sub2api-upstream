@@ -32,6 +32,17 @@ zero. The paid reference fallback is USD 0.10 per million input tokens. Channel
 price cards and group/user multipliers follow normal native configuration.
 An upstream free tier does not override the gateway's configured customer price.
 
+Bigpot's production composite group exposes `gemini-decision-1` at
+`https://coding-api.guazi-corp.com/v1beta/decisions`. Existing group API keys work
+without rotation. The CNY channel price is 0.65 per million input tokens and
+zero output; the default 0.3 group factor gives CNY 0.195/M input. Individual
+overrides continue to follow native billing rules. The endpoint requires the
+Decisions request shape above; a Jev or chat-generation payload is not compatible.
+The deployed account reuses the existing `bestapi-egress` proxy, verified by a
+real request from the production container. Actual project quota was not readable
+with the current console permissions, so published free-tier limits are not a
+verified account entitlement.
+
 For a Decisions-only account, the administrator connection test chooses its
 declared model and shows the native decision JSON. It does not send a chat
 generation request. Production proxy reachability and actual project quota must

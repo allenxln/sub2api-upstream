@@ -6,7 +6,7 @@
 
 **Architecture:** Extend the existing Gemini request lifecycle with a Decisions parser and a separate upstream transport/codec. Native configuration remains the owner of accounts, group access, proxies and prices.
 
-**Tech Stack:** The production Sub2API Go 1.27.3 stack and its existing test tools; existing native UI/configuration.
+**Tech Stack:** The production Sub2API 0.2.21 stack with the Go 1.27.4 security patch and its existing test tools; existing native UI/configuration.
 
 **Spec:** `docs/superpowers/specs/2026-11-13-gemini-decisions.md`
 
@@ -50,9 +50,9 @@
 
 **Files:** Add a safe verification receipt under `docs/verification/`; keep secrets and private before-images outside Git.
 
-- [ ] Verify Google Decisions from the production egress through `bestapi-egress`, using the approved free project and synthetic input.
-- [ ] Establish the current writer, release lock, resource budget and safe candidate/switch mechanism before production writes.
-- [ ] Prepare native account/model/price changes and their exact before/after diff; verify a candidate gateway path and its usage/billing record before activation.
+- [x] Verify Google Decisions from the production egress through `bestapi-egress`, using the approved free project and synthetic input.
+- [x] Establish the current writer, release lock, resource budget and safe candidate/switch mechanism before production writes.
+- [x] Prepare native account/model/price changes and their exact before/after diff; verify a candidate gateway path and its usage/billing record before activation.
 - [ ] Complete one fresh whole-branch review, integrate through the repository's review rules, push and verify the owned remote `main` contains the task commits.
-- [ ] Activate only after release gates pass; verify the actual member-facing gateway path, native records and unchanged existing protocol behavior. Report any concrete blocker without claiming activation.
+- [x] Activate only after release gates pass; verify the actual member-facing gateway path, native records and unchanged existing protocol behavior. Report any concrete blocker without claiming activation.
 - [ ] Clean task-owned temporary credentials, build intermediates and merged feature worktree/branches; retain evidence and required rollback material.

@@ -2,6 +2,15 @@ package gemini
 
 import "testing"
 
+func TestFallbackModelAdvertisesDecisionsInsteadOfGeneration(t *testing.T) {
+	for _, name := range []string{"gemini-decision-1", "models/gemini-decision-1"} {
+		model := FallbackModel(name)
+		if model.Name != "models/gemini-decision-1" || len(model.SupportedGenerationMethods) != 1 || model.SupportedGenerationMethods[0] != "decisions" {
+			t.Fatalf("incorrect decision-model capabilities: %+v", model)
+		}
+	}
+}
+
 func TestDefaultModels_ContainsFallbackCatalogModels(t *testing.T) {
 	t.Parallel()
 

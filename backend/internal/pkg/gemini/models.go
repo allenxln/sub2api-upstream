@@ -18,6 +18,7 @@ type ModelsListResponse struct {
 func DefaultModels() []Model {
 	methods := []string{"generateContent", "streamGenerateContent"}
 	return []Model{
+		{Name: "models/" + GeminiDecision1Model, SupportedGenerationMethods: []string{DecisionsAction}},
 		{Name: "models/gemini-3.1-flash-image", SupportedGenerationMethods: methods},
 		{Name: "models/gemini-3.1-flash-image-preview", SupportedGenerationMethods: methods},
 		{Name: "models/gemini-3.1-flash-lite-image", SupportedGenerationMethods: methods},
@@ -63,8 +64,14 @@ func FallbackModel(model string) Model {
 	if model == "" {
 		return Model{Name: "models/unknown", SupportedGenerationMethods: methods}
 	}
-	if len(model) >= 7 && model[:7] == "models/" {
-		return Model{Name: model, SupportedGenerationMethods: methods}
+	name := model
+	if !strings.HasPrefix(name, "models/") {
+		name = "models/" + name
 	}
-	return Model{Name: "models/" + model, SupportedGenerationMethods: methods}
+	for _, known := range DefaultModels() {
+		if known.Name == name {
+			return known
+		}
+	}
+	return Model{Name: name, SupportedGenerationMethods: methods}
 }

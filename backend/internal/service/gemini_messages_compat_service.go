@@ -1106,34 +1106,28 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if len(body) == 0 {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Request body is empty")
 	}
-	decisions := action == gemini.DecisionsAction
-	if decisions && (stream || !isGeminiDecisionsAccount(account)) {
-		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Decisions requires a non-streaming Gemini API key account")
-	}
 
-	// Generative-content repairs must not rewrite decision inputs or criteria.
-	if !decisions {
-		if filteredBody, err := filterEmptyPartsFromGeminiRequest(body); err == nil {
-			body = filteredBody
-		}
-		body = ensureGeminiFunctionCallThoughtSignatures(body)
+	// 过滤掉 parts 为空的消息（Gemini API 不接受空 parts）
+	if filteredBody, err := filterEmptyPartsFromGeminiRequest(body); err == nil {
+		body = filteredBody
 	}
 
 	switch action {
-	case "generateContent", "streamGenerateContent", "countTokens", gemini.DecisionsAction:
+	case "generateContent", "streamGenerateContent", "countTokens":
 		// ok
 	default:
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
 
+	// Some Gemini upstreams validate tool call parts strictly; ensure any `functionCall` part includes a
+	// `thoughtSignature` to avoid frequent INVALID_ARGUMENT 400s.
+	body = ensureGeminiFunctionCallThoughtSignatures(body)
+
 	mappedModel := originalModel
 	if account.Type == AccountTypeAPIKey || account.Type == AccountTypeServiceAccount {
 		mappedModel = account.GetMappedModel(originalModel)
 	}
-	if !decisions && gemini.FallbackModel(mappedModel).Supports(gemini.DecisionsAction) {
-		return nil, s.writeGoogleError(c, http.StatusBadRequest, "This model requires POST "+gemini.DecisionsPath)
-	}
-	if !decisions && action != "countTokens" && geminiImageGenerationDenied(c, body, originalModel, mappedModel) {
+	if action != "countTokens" && geminiImageGenerationDenied(c, body, originalModel, mappedModel) {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, ImageGenerationPermissionMessage())
 	}
 
@@ -1166,10 +1160,6 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 			if err != nil {
 				return nil, "", err
-			}
-			if decisions {
-				request, err := gemini.NewDecisionsRequest(ctx, normalizedBaseURL, apiKey, mappedModel, body)
-				return request, "x-request-id", err
 			}
 
 			fullURL, err := buildGeminiAIStudioModelActionURL(normalizedBaseURL, mappedModel, upstreamAction, useUpstreamStream)
@@ -1556,10 +1546,6 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		}
 
 		return nil, s.writeGeminiNativeUpstreamError(c, account, resp, respBody, requestID, isOAuth)
-	}
-
-	if decisions {
-		return s.handleNativeDecisionsResponse(c, resp, originalModel, mappedModel, requestID, startTime, account)
 	}
 
 	var usage *ClaudeUsage
